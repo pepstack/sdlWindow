@@ -26,18 +26,22 @@
 // SDL
 #ifdef __LINUX__
 #   include <SDL2/SDL.h>
+#   define SDLLOG_PATHFILE "/home/root1/SDL_log.txt"
 #else
 #   include <SDL2/sdl.h>
+#   define SDLLOG_PATHFILE "C:\\TEMP\\SDL_log.txt"
 #endif
 
+
+FILE *log_file = NULL;
 
 // 自定义日志回调函数，将日志输出到指定文件
 void SdlLogCallback(void* userdata, int category, SDL_LogPriority priority, const char* message)
 {
-    static FILE* log_file = NULL;
     if (log_file == NULL) {
         // 打开日志文件
-        log_file = fopen("/home/root1/SDL_log.txt", "w");
+
+        log_file = fopen(SDLLOG_PATHFILE, "w");
         if (log_file == NULL) {
             SDL_Log("无法打开日志文件！");
             return;

@@ -1,0 +1,114 @@
+APPNAME# Makefile both for mingw on windows
+# 2024-09-29
+# Copyright(c) 2024, mapaware.top
+########################################################################
+# Linux, CYGWIN_NT, MSYS_NT, ...
+shuname="$(shell uname)"
+OSARCH=$(shell echo $(shuname)|awk -F '-' '{ print $$1 }')
+
+CC=gcc
+
+# 主程序名
+APPNAME := sdlWindow
+
+# default build is release
+# make BUILD=DEBUG
+BUILD ?= RELEASE
+
+# project source dirs
+PREFIX := .
+SRC_DIR := $(PREFIX)/src
+COMMON_DIR := $(SRC_DIR)/common
+
+# include dirs for header files (*.h)
+INCDIRS += -I$(SRC_DIR) -I$(COMMON_DIR)
+
+
+
+# compile directives
+CFLAGS += -std=gnu99 -D_GNU_SOURCE -fPIC -Wall -Wno-unused-function -Wno-unused-variable
+
+# load libs: -lpthread = libpthread.so
+LDFLAGS += -lm -lpthread
+
+
+# no mingw default
+MINGW_CSRCS := 
+
+# cygwin
+ifeq ($(OSARCH), CYGWIN_NT)
+	ifeq ($(BITS), 64)
+		CFLAGS += -D__CYGWIN64__ -D__CYGWIN__
+	else
+		CFLAGS += -D__CYGWIN32__ -D__CYGWIN__
+	endif
+endif
+
+# mingw
+# $$MSYS2_HOME: windows 系统环境变量
+ifeq ($(OSARCH), MSYS_NT)
+    # sdl2
+	SDL2_LIBROOT := $(PREFIX)/../../Commons/SDL2-2.30.7/x86_64-w64-mingw32
+	MINGW_CSRCS := $(COMMON_DIR)/win32/syslog-client.c
+
+	CFLAGS += -Dmain=SDL_main -D__MINGW64__ -m64
+	LDFLAGS += -L$(SDL2_LIBROOT)/lib -L$$MSYS2_HOME/mingw64/lib -lmingw32 -lSDL2main -lSDL2 -mwindows -lws2_32
+else ifeq ($(OSARCH), MINGW64_NT)
+    # sdl2
+	SDL2_LIBROOT := $(PREFIX)/../../Commons/SDL2-2.30.7/x86_64-w64-mingw32
+	MINGW_CSRCS := $(COMMON_DIR)/win32/syslog-client.c
+
+	CFLAGS += -Dmain=SDL_main -D__MINGW64__ -m64
+	LDFLAGS += -L$(SDL2_LIBROOT)/lib -L$$MSYS2_HOME/mingw64/lib -lmingw32 -lSDL2main -lSDL2 -mwindows -lws2_32
+else ifeq ($(OSARCH), MINGW32_NT)
+    # sdl2
+	SDL2_LIBROOT := $(PREFIX)/../../Commons/SDL2-2.30.7/i686-w64-mingw32
+	MINGW_CSRCS := $(COMMON_DIR)/win32/syslog-client.c
+
+	CFLAGS += -Dmain=SDL_main -D__MINGW32__ -m32
+	LDFLAGS += -L$(SDL2_LIBROOT)/lib -L$$MSYS2_HOME/mingw32/lib -lmingw32 -lSDL2main -lSDL2 -mwindows -lws2_32
+else
+    SDL2_LIBROOT := /usr/local
+
+	CFLAGS += -D__LINUX__
+
+    LDFLAGS += -L/usr/local/lib -lSDL2 -lrt
+endif
+
+# include SDL2 headers
+INCDIRS += -I$(SDL2_LIBROOT)/include
+
+
+ifeq ($(BUILD), DEBUG)
+    # make BUILD=DEBUG
+	CFLAGS += -D_DEBUG -g
+else
+    # default is release
+	CFLAGS += -DNDEBUG -O3
+endif
+
+
+############################### make target ############################
+.PHONY: all clean help
+
+
+all: $(APPNAME)
+
+$(APPNAME): $(SRC_DIR)/$(APPNAME).c
+	@echo "Build $(BUILD) app..."
+	$(CC) $(CFLAGS) $(SRC_DIR)/$(APPNAME).c -o $(APPNAME) $(INCDIRS) $(LDFLAGS) \
+		-Wl,--soname=libSDL2.so \
+		-Wl,--rpath='/usr/local/lib:$(PREFIX):$(PREFIX)/libs'
+	@echo "Done."
+
+
+clean:
+	-rm -f *.stackdump $(APPNAME).o $(APPNAME) $(APPNAME).exe
+
+help:
+	@echo
+	@echo "Build project on $(OSARCH) with the following commands:"
+	@echo "  make BUILD=DEBUG  # build app for debug $(APPNAME)"
+	@echo "  make clean        # clean all temp files"
+	@echo "  make              # build app for release (default)"
+	@echo
